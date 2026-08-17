@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import fallbackPrices from "../lib/pricesFallback.json";
 
-const PRICES_URL = "https://interview.switcheo.com/prices.json";
+const PROXY_URL = "/api/prices";
+const DIRECT_URL = "https://interview.switcheo.com/prices.json";
 const ICON_BASE =
   "https://raw.githubusercontent.com/Switcheo/token-icons/main/tokens";
 
+async function fetchPrices() {
+  try {
+    const res = await fetch(PROXY_URL);
+    if (res.ok) return { data: await res.json(), source: "live" };
+  } catch (_) {}
+  try {
+    const fallback = await fetch(DIRECT_URL);
+    if (fallback.ok) return { data: await fallback.json(), source: "live" };
+  } catch (_) {}
+  return { data: fallbackPrices, source: "cached" };
+}
 function mockBalance(symbol) {
   let hash = 0;
   for (let i = 0; i < symbol.length; i++) {
@@ -68,7 +81,7 @@ function TokenSelector({ label, tokens, selected, onSelect, disabledSymbol }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2 bg-[#151A23] border border-[#1E2530] rounded-lg px-10 py-2 hover:border-[#2A3242] transition-colors"
+        className="w-full flex items-center gap-2 bg-[#151A23] border border-[#1E2530] rounded-lg px-3 py-2 hover:border-[#2A3242] transition-colors"
       >
         {selected ? (
           <>
@@ -143,15 +156,13 @@ export default function Challenge2() {
   const [success, setSuccess] = useState(false);
   const [slippage, setSlippage] = useState(0.5); // percent
   const [customSlippage, setCustomSlippage] = useState("");
+  const [priceSource, setPriceSource] = useState("live");
 
   useEffect(() => {
-    fetch(PRICES_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("Request failed");
-        return res.json();
-      })
-      .then((data) => {
-        // Dedupe currency keeping most recent by date.
+    fetchPrices()
+      .then(({ data, source }) => {
+        setPriceSource(source);
+        // Dedupe by currency keeping most recent by date.
         const latest = new Map();
         for (const entry of data) {
           if (typeof entry.price !== "number" || entry.price <= 0) continue;
@@ -255,6 +266,13 @@ export default function Challenge2() {
             Rates from live token price feed
           </p>
         </div>
+
+        {priceSource === "cached" && (
+          <p className="text-[10px] font-['JetBrains_Mono',monospace] text-[#F5A623] bg-[#F5A623]/10 border border-[#F5A623]/20 rounded-md px-3 py-2">
+            Live price feed unreachable — showing a cached snapshot from Aug 29,
+            2023. Rates may not reflect current prices.
+          </p>
+        )}
 
         <div className="flex flex-col gap-2 bg-[#0B0E14] border border-[#1E2530] rounded-lg p-3">
           <div className="flex items-center justify-between">
