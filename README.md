@@ -46,7 +46,11 @@ npm run start
 ```
 public/
 src/
+  api/
+    prices.js → fetching api
   assets/
+  lib/
+    fallbackPrices.json → local/static data for backup
   pages/
     Home.jsx → Home page
   problem1/
